@@ -118,7 +118,7 @@ def outpaint_steps(
             )
             main_frames.append(current_image.convert("RGB"))
             # print("using Custom Exit Image")
-            save2Collect(current_image, out_config, f"exit_img.png")
+            # save2Collect(current_image, out_config, f"exit_img.png")
         else:
             pr = prompts[max(k for k in prompts.keys() if k <= i)]
             processed, newseed = renderImg2Img(
@@ -141,7 +141,7 @@ def outpaint_steps(
 
             if len(processed.images) > 0:
                 main_frames.append(processed.images[0].convert("RGB"))
-                save2Collect(processed.images[0], out_config, f"outpain_step_{i}.png")
+                # save2Collect(processed.images[0], out_config, f"outpain_step_{i}.png")
             seed = newseed
             # TODO: seed behavior
 
@@ -156,8 +156,8 @@ def outpaint_steps(
                 inpainting_mask_blur / 3 // 2,
                 inpainting_mask_blur / 3 // 2,
             )
-            save2Collect(main_frames[i], out_config, f"main_frame_{i}")
-            save2Collect(enhanced_img, out_config, f"main_frame_enhanced_{i}")
+            # save2Collect(main_frames[i], out_config, f"main_frame_{i}")
+            # save2Collect(enhanced_img, out_config, f"main_frame_enhanced_{i}")
             corrected_frame.paste(enhanced_img, mask=enhanced_img)
             main_frames[i] = corrected_frame
         # else :TEST
@@ -255,13 +255,12 @@ def prepare_output_path():
 
 
 def save2Collect(img, out_config, name):
-    if out_config["isCollect"]:
-        img.save(f'{out_config["save_path"]}/{name}.png')
-
+    #if out_config["isCollect"]:
+    img.save(f'{out_config["save_path"]}/{name}')
+    print(f'wrote file: {name}')
 
 def frame2Collect(all_frames, out_config):
     save2Collect(all_frames[-1], out_config, f"frame_{len(all_frames)}")
-
 
 def frames2Collect(all_frames, out_config):
     for i, f in enumerate(all_frames):
@@ -371,7 +370,7 @@ def create_zoom_single(
         )
         if len(processed.images) > 0:
             current_image = processed.images[0]
-            save2Collect(current_image, out_config, f"init_txt2img.png")
+            # save2Collect(current_image, out_config, f"init_txt2img.png")
         current_seed = newseed
 
     mask_width = math.trunc(width / 4)  # was initially 512px => 128px
@@ -410,17 +409,28 @@ def create_zoom_single(
         mask_height,
         custom_exit_image,
     )
-    all_frames.append(
+    frameCount=0;
+    
+    # all_frames.append(
+        # do_upscaleImg(main_frames[0], upscale_do, upscaler_name, upscale_by)
+        # if upscale_do
+        # else main_frames[0]
+    # )
+    firstFrame=(
         do_upscaleImg(main_frames[0], upscale_do, upscaler_name, upscale_by)
         if upscale_do
         else main_frames[0]
     )
+    
+    save2Collect(firstFrame, out_config, f"frame-{frameCount}.png")
+    frameCount=frameCount+1
+    
     for i in range(len(main_frames) - 1):
         # interpolation steps between 2 inpainted images (=sequential zoom and crop)
         for j in range(num_interpol_frames - 1):
             current_image = main_frames[i + 1]
             interpol_image = current_image
-            save2Collect(interpol_image, out_config, f"interpol_img_{i}_{j}].png")
+            # save2Collect(interpol_image, out_config, f"interpol_img_{i}_{j}].png")
 
             interpol_width = math.ceil(
                 (
@@ -452,7 +462,7 @@ def create_zoom_single(
             )
 
             interpol_image = interpol_image.resize((width, height))
-            save2Collect(interpol_image, out_config, f"interpol_resize_{i}_{j}.png")
+            # save2Collect(interpol_image, out_config, f"interpol_resize_{i}_{j}.png")
 
             # paste the higher resolution previous image in the middle to avoid drop in quality caused by zooming
             interpol_width2 = math.ceil(
@@ -472,36 +482,53 @@ def create_zoom_single(
             )
 
             interpol_image.paste(prev_image_fix_crop, mask=prev_image_fix_crop)
-            save2Collect(interpol_image, out_config, f"interpol_prevcrop_{i}_{j}.png")
+            # save2Collect(interpol_image, out_config, f"interpol_prevcrop_{i}_{j}.png")
 
             if upscale_do and progress:
                 progress(((i + 1) / num_outpainting_steps), desc="upscaling interpol")
 
-            all_frames.append(
+            # all_frames.append(
+                # do_upscaleImg(interpol_image, upscale_do, upscaler_name, upscale_by)
+                # if upscale_do
+                # else interpol_image
+            # )
+            newFrame = (
                 do_upscaleImg(interpol_image, upscale_do, upscaler_name, upscale_by)
                 if upscale_do
                 else interpol_image
             )
+            save2Collect(newFrame, out_config, f"frame-{frameCount}.png")
+            frameCount=frameCount+1
+            #save2Collect(newFrame, out_config, f"interpol_prevcrop_{i}_{j}.png")    
 
         if upscale_do and progress:
             progress(((i + 1) / num_outpainting_steps), desc="upscaling current")
 
-        all_frames.append(
+        # all_frames.append(
+            # do_upscaleImg(current_image, upscale_do, upscaler_name, upscale_by)
+            # if upscale_do
+            # else current_image
+        # )
+        newFrame = (
             do_upscaleImg(current_image, upscale_do, upscaler_name, upscale_by)
             if upscale_do
             else current_image
         )
+        
+        save2Collect(newFrame, out_config, f"frame-{frameCount}.png")
+        frameCount=frameCount+1
+        
 
-    frames2Collect(all_frames, out_config)
+    # frames2Collect(all_frames, out_config)
 
-    write_video(
-        out_config["video_filename"],
-        all_frames,
-        video_frame_rate,
-        video_zoom_mode,
-        int(video_start_frame_dupe_amount),
-        int(video_last_frame_dupe_amount),
-    )
+    # write_video(
+        # out_config["video_filename"],
+        # all_frames,
+        # video_frame_rate,
+        # video_zoom_mode,
+        # int(video_start_frame_dupe_amount),
+        # int(video_last_frame_dupe_amount),
+    # )
     print("Video saved in: " + os.path.join(script_path, out_config["video_filename"]))
     return (
         out_config["video_filename"],
